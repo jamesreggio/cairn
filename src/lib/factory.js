@@ -33,6 +33,29 @@ function factory(parentStyler, sheet = {}, stylesTransformer, propsTransformer) 
   return combinedStyler;
 };
 
+function mergeInline(result, inline) {
+  if (Array.isArray(inline)) {
+    return inline.reduce((result, item) => mergeInline(result, item), result);
+  }
+
+  if (inline != null && typeof inline === 'object') {
+    const {style, ...rest} = inline;
+
+    if (style) {
+      return {
+        ...result,
+        ...rest,
+        style: [...result.style, style],
+      };
+    }
+  }
+
+  return {
+    ...result,
+    style: [...result.style, inline],
+  };
+}
+
 function mergedStyle(...stylers) {
   const cache = {};
   return function (query, toggle, inline = []) {
@@ -41,12 +64,12 @@ function mergedStyle(...stylers) {
       toggle = null;
     }
 
-    const key = cacheKey(query, toggle);
-    if (!inline.length && cache[key]) {
+    const key = cacheKey(query, toggle, inline);
+    if (cache[key]) {
       return cache[key];
     }
 
-    const result = stylers.reduce((prevStylesAndProps, styler) => {
+    let result = stylers.reduce((prevStylesAndProps, styler) => {
       const currentStylesAndProps = styler(query, toggle);
       return {
         ...prevStylesAndProps,
@@ -56,8 +79,10 @@ function mergedStyle(...stylers) {
     }, { style: [] });
 
     if (inline.length) {
-      result.style = [...result.style, ...inline];
-    } else {
+      result = mergeInline(result, inline);
+    }
+
+    if (key) {
       cache[key] = result;
     }
 
