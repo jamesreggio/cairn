@@ -70,7 +70,7 @@ function cacheKey(query, toggle) {
 
 // If the selector is conditional, return it based on toggle
 function conditionalSelector(selector, toggle) {
-  var usingToggleHash = toggle != null && typeof toggle !== 'string' && Object.keys(toggle).length !== 0;
+  var usingToggleHash = toggle != null && typeof toggle === 'object' && Object.keys(toggle).length !== 0;
   var selectorParts = selector.split('?');
 
   // The selector is conditional
