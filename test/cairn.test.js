@@ -16,8 +16,11 @@ describe('cairn', function () {
 
         thingOneWithProps = { fontSize: 10, props: { underlayColor: 'red' }},
         thingTwoWithProps = { fontSize: 20, props: { overlayColor: 'blue' }},
+        thingTwoWithExtends = { fontSize: 20, extends: 'parent.childWithColor thingOne' },
         parentWithProps = { fontSize: 10, props: { underlayColor: 'red' }},
+        childWithColor = { color: 'red', props: { foo: 'bar' } },
         childWithProps = { fontSize: 20, props: { overlayColor: 'blue' }},
+        childWithExtends = { fontSize: 20, extends: 'parent.childWithColor', props: { foo: 42 } },
         grandchildWithProps = { fontSize: 30, props: {
             overlayColor: 'black',
             highlightColor: 'purple'
@@ -267,6 +270,48 @@ describe('cairn', function () {
                 });
             });
         });
+
+        describe('extensions', function () {
+            beforeEach(function () {
+                sheet = {
+                    'thingOne': thingOne,
+                    'thingTwoWithExtends': thingTwoWithExtends,
+                    'parent': parent,
+                    'parent.childWithExtends': childWithExtends,
+                    'parent.childWithColor': childWithColor,
+                };
+              console.log(pile(sheet));
+                style = cairn(sheet);
+            });
+            it('should process extends in the order specified', function () {
+                expect(style('thingTwoWithExtends')).to.eql({
+                    style: [{
+                        fontSize: 30
+                    },{
+                        color: 'red'
+                    },{
+                        fontSize: 10
+                    },{
+                        fontSize: 20
+                    }],
+                    foo: 'bar',
+                });
+            });
+            it('should handle nested children', function () {
+                expect(style('parent.childWithExtends')).to.eql({
+                    style: [{
+                        fontSize: 30
+                    },{
+                        color: 'red'
+                    },{
+                        fontSize: 30
+                    },{
+                        fontSize: 20
+                    }],
+                    foo: 42,
+                });
+            });
+        });
     });
 
     describe('pile', function () {
@@ -305,6 +350,7 @@ describe('cairn', function () {
         it('should pile with a name prefix', function () {
             expect(pile('foo', sheet)).to.eql({
                 props: { },
+                extensions: { },
                 styles: {
                     'foo.uncle': {
                         fontSize: 10
@@ -336,6 +382,7 @@ describe('cairn', function () {
         it('should pile without a name prefix', function () {
             expect(pile(sheet)).to.eql({
                 props: { },
+                extensions: { },
                 styles: {
                     'uncle': {
                         fontSize: 10
@@ -368,6 +415,7 @@ describe('cairn', function () {
             it('should strip empty parents', function () {
                 expect(pile({ parent: { child: { attr: 10 } } })).to.eql({
                     props: {},
+                    extensions: { },
                     styles: {
                         'parent.child': {
                             attr: 10
@@ -398,6 +446,7 @@ describe('cairn', function () {
 
             it('should compile props separately from styles', function () {
                 expect(pile(sheet)).to.eql({
+                    extensions: { },
                     styles: {
                         'childWithProps.grandchildWithProps': {
                             color: 'red'
