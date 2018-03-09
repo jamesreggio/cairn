@@ -1,27 +1,41 @@
 export default function style(sheet) {
-  return function styler(query, toggle) {
-    const missing = [];
+  return function styler(query, toggle, iteration = 0) {
+    if (iteration >= 10) {
+      throw Error('Circular dependency in `extends`');
+    }
+
     const selectors = selectorsFor(query, toggle);
+
+    // Compile extensions
+    let {style, ...props} = selectors
+      .map(selector => sheet.extensions[selector])
+      .filter(query => query)
+      .reduce((props, query) => {
+        const nextProps = styler(query, null, iteration + 1);
+
+        return {
+          ...props,
+          ...nextProps,
+          style: [...props.style, ...nextProps.style],
+        };
+      }, {style: []});
+
     // Compile styles
-    let style = selectors
-      .map(selector => {
-        let style = sheet.styles[selector];
-        if (!style) {
-          missing.push(selector);
-        }
-        return style;
-      })
-      .filter(style => style);
+    style = style.concat(
+      selectors
+        .map(selector => sheet.styles[selector])
+      .filter(style => style)
+    );
 
     // Compile props
-    const props = selectors
-      .reduce((props, selector) => {
-        if (!sheet.props) return props;
+    props = selectors
+      .reduce((props, selector) => (
+        !sheet.props
+          ? props
+          : Object.assign(props, sheet.props[selector])
+      ), props);
 
-        return Object.assign(props, sheet.props[selector]);
-      }, {});
-
-    props.style = style;
+    props.style = style.filter(style => style != null);
 
     return props;
   };
