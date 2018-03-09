@@ -4,6 +4,8 @@ export default function pile(prefix, sheet, flattened = {}, props = {}) {
     prefix = '';
   }
 
+  const extensions = {};
+
   Object.keys(sheet).forEach(className => {
     let styles = {};
 
@@ -15,6 +17,12 @@ export default function pile(prefix, sheet, flattened = {}, props = {}) {
         }
 
         props[makeName(prefix, className)] = value;
+      } else if (attribute === 'extend') {
+        if (typeof value !== 'string') {
+          throw new Error('Invalid `extend` definition');
+        }
+
+        extensions[makeName(prefix, className)] = value;
       } else if (isNestedElement(attribute, value)) {
         pile(makeName(prefix, className), { [attribute]: value }, flattened, props);
       } else {
@@ -27,7 +35,7 @@ export default function pile(prefix, sheet, flattened = {}, props = {}) {
     }
   });
 
-  return { styles: flattened, props };
+  return { styles: flattened, extensions, props };
 };
 
 // The property names which can be styled via an object in RN
