@@ -1,11 +1,10 @@
 import style, {cacheKey} from './style';
 import pile from './pile';
 
-function noopStyler() { return { style: [] }; }
+const noopPile = { styles: {}, props: {}, extensions: {} };
 function noopTransformer(prop) { return prop }
 
-function factory(parentStyler, sheet = {}, stylesTransformer, propsTransformer) {
-  // Check for null or undefined and set to a noop
+function factory(parentPile, sheet = {}, stylesTransformer, propsTransformer) {
   if (stylesTransformer == null) {
     stylesTransformer = noopTransformer;
   }
@@ -13,27 +12,38 @@ function factory(parentStyler, sheet = {}, stylesTransformer, propsTransformer) 
     propsTransformer = noopTransformer;
   }
 
-  const stylesAndProps = pile(sheet);
+  const thisPile = pile(sheet);
+  thisPile.styles = stylesTransformer(thisPile.styles);
+  thisPile.props = propsTransformer(thisPile.props);
 
-  // Allow the user a chance to transform the styles (e.g. into a RN stylesheet)
-  stylesAndProps.styles = stylesTransformer(stylesAndProps.styles);
+  const combinedPiles = mergePiles(parentPile, thisPile);
+  const styler = withCache(style(combinedPiles));
+  styler.extend = (sheet) => factory(combinedPiles, sheet, stylesTransformer, propsTransformer);
 
-  // Allow the user a chance to convert the props
-  stylesAndProps.props = propsTransformer(stylesAndProps.props);
-
-  // Generate the styling function for the current sheet
-  const currentStyler = style(stylesAndProps);
-
-  // Create a new styling function that will combine together the current sheet with the parent
-  const combinedStyler = mergedStyle(parentStyler, currentStyler);
-
-  // Add the extend function for chaining
-  combinedStyler.extend = (sheet) => factory(combinedStyler, sheet, stylesTransformer, propsTransformer);
-
-  return combinedStyler;
+  return styler;
 };
 
-function mergedStyle(...stylers) {
+function mergePiles(parent, child) {
+  function warnKeys(a, b, type) {
+    Object.keys(b[type]).forEach(key => {
+      if (key in a[type]) {
+        console.warn(`Overriding key ${key} in ${type}`);
+      }
+    });
+  }
+
+  warnKeys(parent, child, 'styles');
+  warnKeys(parent, child, 'props');
+  warnKeys(parent, child, 'extensions');
+
+  return {
+    styles: { ...parent.styles, ...child.styles },
+    props: { ...parent.props, ...child.props },
+    extensions: { ...parent.extensions, ...child.extensions },
+  };
+}
+
+function withCache(styler) {
   const cache = {};
   return function (query, toggle, inline = []) {
     if (Array.isArray(toggle)) {
@@ -46,14 +56,7 @@ function mergedStyle(...stylers) {
       return cache[key];
     }
 
-    const result = stylers.reduce((prevStylesAndProps, styler) => {
-      const currentStylesAndProps = styler(query, toggle);
-      return {
-        ...prevStylesAndProps,
-        ...currentStylesAndProps,
-        style: [ ...prevStylesAndProps.style, ...currentStylesAndProps.style ]
-      };
-    }, { style: [] });
+    const result = styler(query, toggle);
 
     if (inline.length) {
       result.style = [...result.style, ...inline];
@@ -65,4 +68,4 @@ function mergedStyle(...stylers) {
   }
 }
 
-export default factory.bind(null, noopStyler);
+export default factory.bind(null, noopPile);

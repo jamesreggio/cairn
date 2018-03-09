@@ -1,10 +1,8 @@
-export default function pile(prefix, sheet, flattened = {}, props = {}) {
+export default function pile(prefix, sheet, flattened = {}, props = {}, extensions = {}) {
   if (!sheet) {
     sheet = prefix;
     prefix = '';
   }
-
-  const extensions = {};
 
   Object.keys(sheet).forEach(className => {
     let styles = {};
@@ -24,7 +22,7 @@ export default function pile(prefix, sheet, flattened = {}, props = {}) {
 
         extensions[makeName(prefix, className)] = value;
       } else if (isNestedElement(attribute, value)) {
-        pile(makeName(prefix, className), { [attribute]: value }, flattened, props);
+        pile(makeName(prefix, className), { [attribute]: value }, flattened, props, extensions);
       } else {
         styles[attribute] = value;
       }
