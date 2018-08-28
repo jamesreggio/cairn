@@ -43,6 +43,42 @@ function mergePiles(parent, child) {
   };
 }
 
+function mergeInline(result, inline) {
+  if (Array.isArray(inline)) {
+    return inline.reduce((result, item) => mergeInline(result, item), result);
+  }
+
+  if (inline != null && typeof inline === 'object') {
+    const {style, props, ...rest} = inline;
+
+    if (style && props) {
+      console.error('Ambiguous inline styles', inline);
+    }
+
+    //XXX this doesn't make any sense to me
+    if (style) {
+      return {
+        ...result,
+        ...rest,
+        style: [...result.style, style],
+      };
+    }
+
+    if (props) {
+      return {
+        ...result,
+        ...props,
+        style: [...result.style, rest],
+      };
+    }
+  }
+
+  return {
+    ...result,
+    style: [...result.style, inline],
+  };
+}
+
 function withCache(styler) {
   const cache = {};
   return function (query, toggle, inline = []) {
@@ -51,16 +87,18 @@ function withCache(styler) {
       toggle = null;
     }
 
-    const key = cacheKey(query, toggle);
-    if (!inline.length && cache[key]) {
+    const key = cacheKey(query, toggle, inline);
+    if (cache[key]) {
       return cache[key];
     }
 
-    const result = styler(query, toggle);
+    let result = styler(query, toggle);
 
     if (inline.length) {
-      result.style = [...result.style, ...inline];
-    } else {
+      result = mergeInline(result, inline);
+    }
+
+    if (key) {
       cache[key] = result;
     }
 
